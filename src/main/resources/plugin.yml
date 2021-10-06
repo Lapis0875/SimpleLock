@@ -1,0 +1,15 @@
+name: SimpleLock
+version: '${project.version}'
+main: com.github.lapis0875.simplelock.Simplelock
+api-version: 1.17
+prefix: SimpleLock
+authors: [ Lapis0875 ]
+description: Simple Lock plugin for paper.
+website: https://lapis0875.github.com
+commands:
+  lock:
+    description: Main command of SimpleLock. Lock item on main hand.
+    usage: /<command>
+  unlock:
+    description: Unlock item on main hand.
+    usage: /<command>
