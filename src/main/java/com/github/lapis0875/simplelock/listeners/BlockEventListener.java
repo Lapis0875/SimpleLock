@@ -1,13 +1,15 @@
 package com.github.lapis0875.simplelock.listeners;
 
-import com.destroystokyo.paper.event.block.BlockDestroyEvent;
 import com.github.lapis0875.simplelock.Constants;
+import com.github.lapis0875.simplelock.models.NBTLock;
 import com.github.lapis0875.simplelock.models.ObjectLock;
 import net.kyori.adventure.text.Component;
 import org.bukkit.block.Block;
 import org.bukkit.block.TileState;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
@@ -21,20 +23,20 @@ public class BlockEventListener implements Listener {
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent e) {
         ItemStack item = e.getItemInHand();
-        if (!ObjectLock.isLockable(item.getType())) return;
+        if (!NBTLock.isLockable(item.getType())) return;
 
-        Optional<ObjectLock> lock = ObjectLock.getObjectLock(item.getItemMeta().getPersistentDataContainer());
-        lock.ifPresent((objectLock) -> objectLock.applyLock(e.getBlockPlaced()));
+        Optional<NBTLock> lock = NBTLock.getLock(item.getItemMeta().getPersistentDataContainer());
+        lock.ifPresent((objectLock) -> objectLock.applyLock(e.getBlockPlaced(), null));
     }
 
     /*
     * Handle when redstone signal is on locked object.
     */
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onBlockRedstone(BlockRedstoneEvent e) {
-        if (!ObjectLock.isLockable(e.getBlock().getType())) return;
+        if (!NBTLock.isLockable(e.getBlock().getType())) return;
         TileState state = (TileState) e.getBlock().getState();
-        Optional<ObjectLock> objectLock = ObjectLock.getObjectLock(state.getPersistentDataContainer());
+        Optional<NBTLock> objectLock = NBTLock.getLock(state.getPersistentDataContainer());
         if (!objectLock.isPresent()) return;
         e.setNewCurrent(0);
     }
@@ -45,18 +47,18 @@ public class BlockEventListener implements Listener {
     @EventHandler
     public void onBlockBreak(BlockBreakEvent e) {
         Block block = e.getBlock();
-        if (!ObjectLock.isLockable(block.getType())) return;
+        if (!NBTLock.isLockable(block.getType())) return;
 
         TileState state = (TileState) e.getBlock().getState();
-        Optional<ObjectLock> optionalLock = ObjectLock.getObjectLock(state.getPersistentDataContainer());
+        Optional<NBTLock> optionalLock = NBTLock.getLock(state.getPersistentDataContainer());
         optionalLock.ifPresent((lock) -> {
             Player player = e.getPlayer();
             if (player.getUniqueId().equals(lock.ownerUUID)) {
-                player.sendMessage(Component.text("잠긴 아이템/블럭을 파괴했습니다.", Constants.INFO));
+                lock.sendLockAccessAllow(ObjectLock.LockActionType.BREAK, e.getPlayer());
             }
             else {
-                player.sendMessage(Component.text("소유주가 아니므로 잠긴 블럭을 파괴할 수 없습니다.", Constants.ERROR));
                 e.setCancelled(true);
+                lock.sendLockAccessDeny(ObjectLock.LockActionType.BREAK, e.getPlayer());
             }
         });
 
@@ -75,8 +77,8 @@ public class BlockEventListener implements Listener {
         e.blockList().removeIf(
             block ->
                 block != null
-                && ObjectLock.isLockable(block.getType())
-                && ObjectLock.getObjectLock(((TileState) block.getState()).getPersistentDataContainer()).isPresent()
+                && NBTLock.isLockable(block.getType())
+                && NBTLock.getLock(((TileState) block.getState()).getPersistentDataContainer()).isPresent()
         );
 //        e.blockList().stream().filter(
 //                (block) -> block != null && ObjectLock.isLockable(block.getType()) && ObjectLock.getObjectLock(((TileState) block.getState()).getPersistentDataContainer()).isPresent()

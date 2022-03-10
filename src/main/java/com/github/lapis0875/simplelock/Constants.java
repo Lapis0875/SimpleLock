@@ -1,6 +1,9 @@
 package com.github.lapis0875.simplelock;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.format.TextColor;
+import org.bukkit.NamespacedKey;
 
 public class Constants {
     public static final String PLUGIN_NAME = "";
@@ -19,7 +22,15 @@ public class Constants {
     public static String ALLOWED_PLAYER(int index) {
         return ALLOWED_PLAYER_BASE + index;
     }
-    // Colors
-    public static final TextColor INFO = TextColor.color(171, 242, 0);
-    public static final TextColor ERROR = TextColor.color(200, 0, 0);
+    // Player Lock Config Meta
+    public static final String NOTIFICATION = "notification";
+    public static NamespacedKey NOTIFICATION_KEY() {
+        return new NamespacedKey(Simplelock.instance(), NOTIFICATION);
+    }
+    // Component Util
+    public static final JoinConfiguration SPACE_JOIN_CONFIG = JoinConfiguration.separator(Component.text(" "));
+    public static final JoinConfiguration COLON_JOIN_CONFIG = JoinConfiguration.separator(Component.text(" : "));
+    public static final TextColor ALLOW_COLOR = TextColor.color(171, 242, 0);
+    public static final TextColor DENY_COLOR = TextColor.color(200, 0, 0);
+    public static final TextColor INFO_COLOR = TextColor.color(220, 220, 220);
 }

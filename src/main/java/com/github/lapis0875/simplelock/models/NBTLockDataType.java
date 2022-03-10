@@ -11,27 +11,27 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Optional;
 import java.util.UUID;
 
-public class ObjectLockDataType implements PersistentDataType<PersistentDataContainer, ObjectLock> {
+public class NBTLockDataType implements PersistentDataType<PersistentDataContainer, NBTLock> {
     @Override
     public @NotNull Class<PersistentDataContainer> getPrimitiveType() {
         return PersistentDataContainer.class;
     }
 
     @Override
-    public @NotNull Class<ObjectLock> getComplexType() {
-        return ObjectLock.class;
+    public @NotNull Class<NBTLock> getComplexType() {
+        return NBTLock.class;
     }
 
     @Override
-    public @NotNull PersistentDataContainer toPrimitive(@NotNull ObjectLock complex, @NotNull PersistentDataAdapterContext context) {
+    public @NotNull PersistentDataContainer toPrimitive(@NotNull NBTLock complex, @NotNull PersistentDataAdapterContext context) {
         return complex.toNBTTag(context);
     }
 
     @Override
-    public @NotNull ObjectLock fromPrimitive(@NotNull PersistentDataContainer primitive, @NotNull PersistentDataAdapterContext context) {
+    public @NotNull NBTLock fromPrimitive(@NotNull PersistentDataContainer primitive, @NotNull PersistentDataAdapterContext context) {
         String ownerName = primitive.get(new NamespacedKey(Simplelock.instance(), Constants.LOCK_OWNER_NAME), PersistentDataType.STRING);
         UUID ownerUUID = primitive.get(new NamespacedKey(Simplelock.instance(), Constants.LOCK_OWNER_UUID), new UUIDDataType());
-        ObjectLock lock = new ObjectLock(ownerName, ownerUUID);
+        NBTLock lock = new NBTLock(ownerName, ownerUUID);
         Optional<PersistentDataContainer> allowedPlayersTag = Optional.ofNullable(primitive.get(
                 new NamespacedKey(Simplelock.instance(), Constants.LOCK_ALLOWED_PLAYERS),
                 PersistentDataType.TAG_CONTAINER
