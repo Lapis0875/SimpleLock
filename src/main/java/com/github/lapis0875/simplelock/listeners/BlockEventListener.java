@@ -37,7 +37,7 @@ public class BlockEventListener implements Listener {
         if (!NBTLock.isLockable(e.getBlock().getType())) return;
         TileState state = (TileState) e.getBlock().getState();
         Optional<NBTLock> objectLock = NBTLock.getLock(state.getPersistentDataContainer());
-        if (!objectLock.isPresent()) return;
+        if (objectLock.isEmpty()) return;
         e.setNewCurrent(0);
     }
 
