@@ -100,6 +100,15 @@ public class NBTLock extends ObjectLock {
         return optLock.isPresent();
     }
 
+    private List<Block> getAdjacentBlocks(Block block) {
+        ArrayList<Block> adjacentBlocks = new ArrayList<>();
+        adjacentBlocks.add(block.getWorld().getBlockAt(block.getLocation().add(1, 0, 0)));
+        adjacentBlocks.add(block.getWorld().getBlockAt(block.getLocation().add(-1, 0, 0)));
+        adjacentBlocks.add(block.getWorld().getBlockAt(block.getLocation().add(0, 0, 1)));
+        adjacentBlocks.add(block.getWorld().getBlockAt(block.getLocation().add(0, 0, -1)));
+        return adjacentBlocks;
+    }
+
     @Override
     public void applyLock(ItemStack item) {
         ItemMeta meta = item.getItemMeta();
@@ -121,15 +130,37 @@ public class NBTLock extends ObjectLock {
         if (!NBTLock.isLockable(block.getType())) return;
         block.getWorld().sendMessage(Component.text("Type of block : ".concat(block.getType().toString())));
         if ((block.getType().equals(Material.CHEST) || block.getType().equals(Material.TRAPPED_CHEST))
-                && ((Chest) block.getState()).getInventory() instanceof DoubleChestInventory
+                && ((Chest) block.getState()).getInventory().getHolder() instanceof DoubleChest
         ) {
-            // Double Chest! Damn it.
             Chest state = (Chest) block.getState();
-            ArrayList<Block> adjacentBlocks = new ArrayList<>();
-            adjacentBlocks.add(block.getWorld().getBlockAt(block.getLocation().add(1, 0, 0)));
-            adjacentBlocks.add(block.getWorld().getBlockAt(block.getLocation().add(-1, 0, 0)));
-            adjacentBlocks.add(block.getWorld().getBlockAt(block.getLocation().add(0, 0, 1)));
-            adjacentBlocks.add(block.getWorld().getBlockAt(block.getLocation().add(0, 0, -1)));
+            DoubleChest holder = (DoubleChest) state.getInventory().getHolder();
+
+            Optional<Chest> optLeft = Optional.ofNullable((Chest) holder.getLeftSide());
+            optLeft.ifPresent(
+                    (left) -> block.getWorld().sendMessage(
+                            Component.text(
+                                    "Left side of chest : (%d, %d, %d)".formatted(
+                                            left.getX(),
+                                            left.getY(),
+                                            left.getZ()
+                                    ),
+                                    Constants.INFO_COLOR
+                            )
+                    )
+            );
+            Optional<Chest> optRight = Optional.ofNullable((Chest) holder.getRightSide());
+            optRight.ifPresent(
+                    (right) -> block.getWorld().sendMessage(
+                            Component.text(
+                                    "Left side of chest : (%d, %d, %d)".formatted(
+                                            right.getX(),
+                                            right.getY(),
+                                            right.getZ()
+                                    ),
+                                    Constants.INFO_COLOR
+                            )
+                    )
+            );
             
             Block xUp = block.getWorld().getBlockAt(block.getLocation().add(1, 0, 0));
             block.getWorld().sendMessage(Component.text(
@@ -164,8 +195,17 @@ public class NBTLock extends ObjectLock {
                     ),
                     Constants.INFO_COLOR
             ));
-            if (original == null) {
-                for (Block b: adjacentBlocks) {
+            state.getPersistentDataContainer().set(
+                    this.getNamespacedKey(),
+                    new NBTLockDataType(),
+                    this
+            );
+            state.update();
+            if (original == null && optLeft.isPresent() && optRight.isPresent()) {
+                Chest left = optLeft.get();
+                Chest right = optRight.get();
+                Location otherPart = block.getLocation().equals(left.getLocation()) ? right.getLocation() : left.getLocation();
+                for (Block b: this.getAdjacentBlocks(block)) {
                     if (b.getType().equals(Material.CHEST) || b.getType().equals(Material.TRAPPED_CHEST)) {
                         block.getWorld().sendMessage(Component.text(
                                 String.format(
@@ -174,21 +214,12 @@ public class NBTLock extends ObjectLock {
                                 ),
                                 Constants.INFO_COLOR
                         ));
-                        this.applyLock(b, block);
+                        if (b.getLocation().equals(otherPart)) {
+                            this.applyLock(b, block);
+                        }
                     }
                 }
             }
-            state.getPersistentDataContainer().set(
-                    this.getNamespacedKey(),
-                    new NBTLockDataType(),
-                    this
-            );
-            state.update();
-//            // Check if chest is big chest
-//            Chest state = (Chest) block.getState();
-//            InventoryHolder holder = state.getInventory().getHolder();
-//            if (holder instanceof DoubleChest) {
-//            }
         }
         else {
             TileState state = (TileState) block.getState();
@@ -213,48 +244,70 @@ public class NBTLock extends ObjectLock {
     }
 
     @Override
+    /*
+      @param block : block to remove lock in it.
+     * @param original : parameter to indicate whether it is removing locks of adjacent blocks or the original block.
+     */
     public void removeLock(Block block, @Nullable Block original) {
         if (!NBTLock.isLockable(block.getType())) return;
         if ((block.getType() == Material.CHEST
                 || block.getType() == Material.TRAPPED_CHEST)
-                && ((Chest) block.getState()).getInventory() instanceof DoubleChestInventory
+                && ((Chest) block.getState()).getInventory().getHolder() instanceof DoubleChest
         ) {
-            // Check if chest is big chest
-            Bukkit.getLogger().info("Double Chest Detected");
+            // Double Chest! Damn it.
             Chest state = (Chest) block.getState();
             DoubleChest holder = (DoubleChest) state.getInventory().getHolder();
-            // Double Chest! Damn it.
-            block.getWorld().sendMessage(Component.text(
-                    String.format(
-                            "Double chest detected at : (%d, %d, %d)",
-                            block.getX(),
-                            block.getY(),
-                            block.getZ()
+
+            Optional<Chest> optLeft = Optional.ofNullable((Chest) holder.getLeftSide());
+            optLeft.ifPresent(
+                    (left) -> block.getWorld().sendMessage(
+                            Component.text(
+                                    "Left side of chest : (%d, %d, %d)".formatted(
+                                            left.getX(),
+                                            left.getY(),
+                                            left.getZ()
+                                    ),
+                                    Constants.INFO_COLOR
+                            )
                     )
-            ));
-            Location chestLeft = holder.getLeftSide().getInventory().getLocation();
-            block.getWorld().sendMessage(Component.text(
-                    String.format(
-                            "Left > (%d, %d, %d)",
-                            chestLeft.getBlockX(),
-                            chestLeft.getBlockY(),
-                            chestLeft.getBlockZ()
+            );
+            Optional<Chest> optRight = Optional.ofNullable((Chest) holder.getRightSide());
+            optRight.ifPresent(
+                    (right) -> block.getWorld().sendMessage(
+                            Component.text(
+                                    "Left side of chest : (%d, %d, %d)".formatted(
+                                            right.getX(),
+                                            right.getY(),
+                                            right.getZ()
+                                    ),
+                                    Constants.INFO_COLOR
+                            )
                     )
-            ));
-            Location chestRight = holder.getRightSide().getInventory().getLocation();
-            block.getWorld().sendMessage(Component.text(
-                    String.format(
-                            "Right > (%d, %d, %d)",
-                            chestRight.getBlockX(),
-                            chestRight.getBlockY(),
-                            chestRight.getBlockZ()
-                    )
-            ));
+            );
 
             state.getPersistentDataContainer().remove(
                     this.getNamespacedKey()
             );
             state.update();
+            if (original == null && optLeft.isPresent() && optRight.isPresent()) {
+                Chest left = optLeft.get();
+                Chest right = optRight.get();
+                Location otherPart = block.getLocation().equals(left.getLocation()) ? right.getLocation() : left.getLocation();
+                for (Block b: this.getAdjacentBlocks(block)) {
+                    if (b.getType().equals(Material.CHEST) || b.getType().equals(Material.TRAPPED_CHEST)) {
+                        block.getWorld().sendMessage(Component.text(
+                                String.format(
+                                        "Found chest / trapped chest at (%d, %d, %d)",
+                                        b.getX(), b.getY(), b.getZ()
+                                ),
+                                Constants.INFO_COLOR
+                        ));
+                        if (b.getLocation().equals(otherPart)) {
+                            this.removeLock(b, block);
+                        }
+                    }
+                }
+            }
 
         }
         else {
