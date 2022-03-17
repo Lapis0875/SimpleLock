@@ -26,8 +26,7 @@ public class LockCommandsExecutor implements CommandExecutor, TabCompleter {
             @NotNull String label,
             @NotNull String[] args
     ) {
-        if (sender instanceof Player) {
-            Player player = (Player) sender;
+        if (sender instanceof Player player) {
             switch (command.getName()) {
                 case Constants.CMD_LOCK:
                     // lock
@@ -128,7 +127,7 @@ public class LockCommandsExecutor implements CommandExecutor, TabCompleter {
             }
             NBTLock lock = new NBTLock(player);
             Block b = blockFacing.get();
-            lock.applyLock(b, null);
+            lock.applyLock(b);
             player.sendMessage(Component.text(
                 String.format(
                     "%s 블럭을 잠갔습니다!",
@@ -296,7 +295,7 @@ public class LockCommandsExecutor implements CommandExecutor, TabCompleter {
             objectLock.ifPresent(
                 (lock) -> {
                     if (lock.ownerUUID.equals(player.getUniqueId())) {
-                        lock.removeLock(targetBlock.get(), null);
+                        lock.removeLock(targetBlock.get());
                         player.sendMessage(Component.text(
                             String.format(
                                 "%s 블럭을 잠금 해제했습니다!",
