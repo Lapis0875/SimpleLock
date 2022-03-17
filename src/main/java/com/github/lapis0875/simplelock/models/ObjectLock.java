@@ -118,10 +118,10 @@ public abstract class ObjectLock {
     }
 
     public abstract void applyLock(ItemStack item);
-    public abstract void applyLock(Block block, @Nullable Block original);
+    public abstract void applyLock(Block block);
 
     public abstract void removeLock(ItemStack item);
-    public abstract void removeLock(Block block, @Nullable Block original);
+    public abstract void removeLock(Block block);
 
     public abstract boolean isPlayerAllowed(Player player);
     public abstract boolean isPlayerAllowed(UUID playerUUID);

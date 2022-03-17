@@ -26,7 +26,7 @@ public class BlockEventListener implements Listener {
         if (!NBTLock.isLockable(item.getType())) return;
 
         Optional<NBTLock> lock = NBTLock.getLock(item.getItemMeta().getPersistentDataContainer());
-        lock.ifPresent((objectLock) -> objectLock.applyLock(e.getBlockPlaced(), null));
+        lock.ifPresent((objectLock) -> objectLock.applyLock(e.getBlockPlaced()));
     }
 
     /*

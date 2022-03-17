@@ -12,7 +12,6 @@ import org.bukkit.block.Chest;
 import org.bukkit.block.DoubleChest;
 import org.bukkit.block.TileState;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.DoubleChestInventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataAdapterContext;
@@ -20,8 +19,10 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.List;
+import java.util.function.Consumer;
 
 
 public class NBTLock extends ObjectLock {
@@ -109,6 +110,44 @@ public class NBTLock extends ObjectLock {
         return adjacentBlocks;
     }
 
+    private void doubleChestAction(Block original, Consumer<Block> action) {
+        Chest state = (Chest) original.getState();
+        DoubleChest holder = (DoubleChest) state.getInventory().getHolder();
+
+        action.accept(original);
+        Optional<Chest> optLeft = Optional.ofNullable((Chest) holder.getLeftSide());
+        Optional<Chest> optRight = Optional.ofNullable((Chest) holder.getRightSide());
+        if (optLeft.isPresent() && optRight.isPresent()) {
+            Chest left = optLeft.get();
+            Chest right = optRight.get();
+            Location otherPartLocation = original.getLocation().equals(left.getLocation()) ? right.getLocation() : left.getLocation();
+            Optional<Block> optOtherPart = this.getAdjacentBlocks(original).stream().filter((block) -> block.getLocation().equals(otherPartLocation)).findFirst();
+            optOtherPart.ifPresent(action);
+        }
+    }
+
+    private void lockBlock(Block block) {
+        if (!(block.getState() instanceof TileState state)) {
+            return;
+        }
+        state.getPersistentDataContainer().set(
+                this.getNamespacedKey(),
+                new NBTLockDataType(),
+                this
+        );
+        state.update();
+    }
+
+    private void unLockBlock(Block block) {
+        if (!(block.getState() instanceof TileState state)) {
+            return;
+        }
+        state.getPersistentDataContainer().remove(
+                this.getNamespacedKey()
+        );
+        state.update();
+    }
+
     @Override
     public void applyLock(ItemStack item) {
         ItemMeta meta = item.getItemMeta();
@@ -126,110 +165,15 @@ public class NBTLock extends ObjectLock {
     }
 
     @Override
-    public void applyLock(Block block, @Nullable Block original) {
+    public void applyLock(Block block) {
         if (!NBTLock.isLockable(block.getType())) return;
-        block.getWorld().sendMessage(Component.text("Type of block : ".concat(block.getType().toString())));
+
+        lockBlock(block);
         if ((block.getType().equals(Material.CHEST) || block.getType().equals(Material.TRAPPED_CHEST))
                 && ((Chest) block.getState()).getInventory().getHolder() instanceof DoubleChest
         ) {
-            Chest state = (Chest) block.getState();
-            DoubleChest holder = (DoubleChest) state.getInventory().getHolder();
-
-            Optional<Chest> optLeft = Optional.ofNullable((Chest) holder.getLeftSide());
-            optLeft.ifPresent(
-                    (left) -> block.getWorld().sendMessage(
-                            Component.text(
-                                    "Left side of chest : (%d, %d, %d)".formatted(
-                                            left.getX(),
-                                            left.getY(),
-                                            left.getZ()
-                                    ),
-                                    Constants.INFO_COLOR
-                            )
-                    )
-            );
-            Optional<Chest> optRight = Optional.ofNullable((Chest) holder.getRightSide());
-            optRight.ifPresent(
-                    (right) -> block.getWorld().sendMessage(
-                            Component.text(
-                                    "Left side of chest : (%d, %d, %d)".formatted(
-                                            right.getX(),
-                                            right.getY(),
-                                            right.getZ()
-                                    ),
-                                    Constants.INFO_COLOR
-                            )
-                    )
-            );
-            
-            Block xUp = block.getWorld().getBlockAt(block.getLocation().add(1, 0, 0));
-            block.getWorld().sendMessage(Component.text(
-                    String.format(
-                            "Block at : (+1, 0, 0) : %s",
-                            xUp.getType()
-                    ),
-                    Constants.INFO_COLOR
-            ));
-
-            Block xDown = block.getWorld().getBlockAt(block.getLocation().add(-1, 0, 0));
-            block.getWorld().sendMessage(Component.text(
-                    String.format(
-                            "Block at : (-1, 0, 0) : %s",
-                            xDown.getType()
-                    ),
-                    Constants.INFO_COLOR
-            ));
-            Block zUp = block.getWorld().getBlockAt(block.getLocation().add(0, 0, 1));
-            block.getWorld().sendMessage(Component.text(
-                    String.format(
-                            "Block at : (0, 0, +1) : %s",
-                            zUp.getType()
-                    ),
-                    Constants.INFO_COLOR
-            ));
-            Block zDown = block.getWorld().getBlockAt(block.getLocation().add(0, 0, -1));
-            block.getWorld().sendMessage(Component.text(
-                    String.format(
-                            "Block at : (0, 0, -1) : %s",
-                            zDown.getType()
-                    ),
-                    Constants.INFO_COLOR
-            ));
-            state.getPersistentDataContainer().set(
-                    this.getNamespacedKey(),
-                    new NBTLockDataType(),
-                    this
-            );
-            state.update();
-            if (original == null && optLeft.isPresent() && optRight.isPresent()) {
-                Chest left = optLeft.get();
-                Chest right = optRight.get();
-                Location otherPart = block.getLocation().equals(left.getLocation()) ? right.getLocation() : left.getLocation();
-                for (Block b: this.getAdjacentBlocks(block)) {
-                    if (b.getType().equals(Material.CHEST) || b.getType().equals(Material.TRAPPED_CHEST)) {
-                        block.getWorld().sendMessage(Component.text(
-                                String.format(
-                                        "Found chest / trapped chest at (%d, %d, %d)",
-                                        b.getX(), b.getY(), b.getZ()
-                                ),
-                                Constants.INFO_COLOR
-                        ));
-                        if (b.getLocation().equals(otherPart)) {
-                            this.applyLock(b, block);
-                        }
-                    }
-                }
-            }
-        }
-        else {
-            TileState state = (TileState) block.getState();
-
-            state.getPersistentDataContainer().set(
-                    this.getNamespacedKey(),
-                    new NBTLockDataType(),
-                    this
-            );
-            state.update();
+            // Double Chest!
+            doubleChestAction(block, this::lockBlock);
         }
     }
 
@@ -248,74 +192,16 @@ public class NBTLock extends ObjectLock {
       @param block : block to remove lock in it.
      * @param original : parameter to indicate whether it is removing locks of adjacent blocks or the original block.
      */
-    public void removeLock(Block block, @Nullable Block original) {
+    public void removeLock(Block block) {
         if (!NBTLock.isLockable(block.getType())) return;
+
+        unLockBlock(block);
+
         if ((block.getType() == Material.CHEST
                 || block.getType() == Material.TRAPPED_CHEST)
                 && ((Chest) block.getState()).getInventory().getHolder() instanceof DoubleChest
         ) {
-            // Double Chest! Damn it.
-            Chest state = (Chest) block.getState();
-            DoubleChest holder = (DoubleChest) state.getInventory().getHolder();
-
-            Optional<Chest> optLeft = Optional.ofNullable((Chest) holder.getLeftSide());
-            optLeft.ifPresent(
-                    (left) -> block.getWorld().sendMessage(
-                            Component.text(
-                                    "Left side of chest : (%d, %d, %d)".formatted(
-                                            left.getX(),
-                                            left.getY(),
-                                            left.getZ()
-                                    ),
-                                    Constants.INFO_COLOR
-                            )
-                    )
-            );
-            Optional<Chest> optRight = Optional.ofNullable((Chest) holder.getRightSide());
-            optRight.ifPresent(
-                    (right) -> block.getWorld().sendMessage(
-                            Component.text(
-                                    "Left side of chest : (%d, %d, %d)".formatted(
-                                            right.getX(),
-                                            right.getY(),
-                                            right.getZ()
-                                    ),
-                                    Constants.INFO_COLOR
-                            )
-                    )
-            );
-
-            state.getPersistentDataContainer().remove(
-                    this.getNamespacedKey()
-            );
-            state.update();
-            if (original == null && optLeft.isPresent() && optRight.isPresent()) {
-                Chest left = optLeft.get();
-                Chest right = optRight.get();
-                Location otherPart = block.getLocation().equals(left.getLocation()) ? right.getLocation() : left.getLocation();
-                for (Block b: this.getAdjacentBlocks(block)) {
-                    if (b.getType().equals(Material.CHEST) || b.getType().equals(Material.TRAPPED_CHEST)) {
-                        block.getWorld().sendMessage(Component.text(
-                                String.format(
-                                        "Found chest / trapped chest at (%d, %d, %d)",
-                                        b.getX(), b.getY(), b.getZ()
-                                ),
-                                Constants.INFO_COLOR
-                        ));
-                        if (b.getLocation().equals(otherPart)) {
-                            this.removeLock(b, block);
-                        }
-                    }
-                }
-            }
-
-        }
-        else {
-            TileState state = (TileState) block.getState();
-            state.getPersistentDataContainer().remove(
-                    this.getNamespacedKey()
-            );
-            state.update();
+            this.doubleChestAction(block, this::unLockBlock);
         }
     }
 

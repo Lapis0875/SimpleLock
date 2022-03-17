@@ -83,7 +83,7 @@ public class NonNBTLock extends ObjectLock {
     }
 
     @Override
-    public void applyLock(Block block, @Nullable Block original) {
+    public void applyLock(Block block) {
 
     }
 
@@ -93,7 +93,7 @@ public class NonNBTLock extends ObjectLock {
     }
 
     @Override
-    public void removeLock(Block block, @Nullable Block original) {
+    public void removeLock(Block block) {
 
     }
 
